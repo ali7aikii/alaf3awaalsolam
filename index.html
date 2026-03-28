@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة السلم والأفعى - الجملة الاسمية والفعلية</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Tajawal', Arial, sans-serif;
+    background: linear-gradient(135deg, #1a237e 0%, #283593 40%, #1565c0 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    color: #fff;
+    text-align: center;
+    font-size: 2rem;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    margin: 10px 0 5px;
+  }
+
+  .subtitle {
+    color: #b3e5fc;
+    text-align: center;
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  .game-wrapper {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  /* ===== BOARD ===== */
+  .board-container {
+    position: relative;
+    background: #fff;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  canvas#board { display: block; border-radius: 8px; }
+
+  /* ===== SIDE PANEL ===== */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 300px;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 16px;
+    padding: 16px;
+    color: #fff;
+  }
+
+  .card h2 { font-size: 1.1rem; margin-bottom: 10px; color: #ffe082; }
+
+  /* Players */
+  .players-grid { display: flex; flex-direction: column; gap: 8px; }
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    transition: background 0.3s;
+  }
+  .player-row.active { background: rgba(255,255,200,0.25); font-weight: bold; }
+  .player-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.5);
+  }
+  .player-info { flex: 1; }
+  .player-pos { font-size: 0.8rem; opacity: 0.8; }
+
+  /* Dice */
+  .dice-area { text-align: center; }
+  #dice-display {
+    font-size: 5rem;
+    line-height: 1;
+    margin: 6px 0;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.4));
+    transition: transform 0.2s;
+  }
+  #dice-display.rolling { animation: spin 0.4s ease-in-out; }
+  @keyframes spin {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.3); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  #roll-btn {
+    background: linear-gradient(135deg, #ff6f00, #ff8f00);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 32px;
+    font-size: 1.2rem;
+    font-family: 'Tajawal', Arial, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255,111,0,0.5);
+    transition: transform 0.15s, box-shadow 0.15s;
+    width: 100%;
+    margin-top: 6px;
+  }
+  #roll-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,111,0,0.6); }
+  #roll-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Log */
+  #log { max-height: 150px; overflow-y: auto; font-size: 0.88rem; }
+  .log-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #e3f2fd; }
+  .log-entry:last-child { border: none; }
+
+  /* Legend */
+  .legend { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-color { width: 20px; height: 20px; border-radius: 4px; }
+
+  /* ===== QUESTION MODAL ===== */
+  #modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal {
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    border-radius: 20px;
+    padding: 28px;
+    max-width: 480px;
+    width: 100%;
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: popIn 0.3s ease-out;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .modal-emoji { font-size: 3rem; text-align: center; margin-bottom: 8px; }
+  .modal-title { font-size: 1rem; color: #ffe082; margin-bottom: 12px; text-align: center; }
+  .modal-question { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 20px; line-height: 1.6; }
+  .modal-options { display: flex; flex-direction: column; gap: 10px; }
+  .modal-opt {
+    background: rgba(255,255,255,0.12);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 1.05rem;
+    font-family: 'Tajawal', Arial, sans-serif;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    text-align: right;
+  }
+  .modal-opt:hover { background: rgba(255,255,255,0.22); border-color: #ffe082; transform: translateX(-4px); }
+  .modal-opt.correct { background: rgba(76,175,80,0.5); border-color: #4caf50; }
+  .modal-opt.wrong   { background: rgba(244,67,54,0.4);  border-color: #f44336; }
+  .modal-feedback { text-align: center; font-size: 1.1rem; margin-top: 14px; padding: 10px; border-radius: 10px; }
+  .modal-feedback.correct { background: rgba(76,175,80,0.3); }
+  .modal-feedback.wrong   { background: rgba(244,67,54,0.3); }
+  #modal-next-btn {
+    display: none;
+    margin-top: 14px;
+    width: 100%;
+    background: linear-gradient(135deg, #43a047, #2e7d32);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px;
+    font-size: 1.1rem;
+    font-family: 'Tajawal', Arial, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ===== WIN SCREEN ===== */
+  #win-screen {
+    display: none;
+    position: fixed; inset: 0;
+    background: linear-gradient(135deg, #1a237e, #4a148c);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+  }
+  #win-screen.show { display: flex; }
+  .win-emoji { font-size: 6rem; animation: bounce 1s infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+  .win-title { font-size: 2.5rem; font-weight: 900; margin: 16px 0 8px; text-shadow: 0 0 20px #ffe082; }
+  .win-sub { font-size: 1.3rem; color: #b3e5fc; margin-bottom: 24px; }
+  #restart-btn {
+    background: linear-gradient(135deg, #ff6f00, #ff8f00);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 40px;
+    font-size: 1.3rem;
+    font-family: 'Tajawal', Arial, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,111,0,0.5);
+  }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed;
+    width: 10px; height: 10px;
+    top: -10px;
+    border-radius: 2px;
+    animation: fall linear forwards;
+    z-index: 201;
+  }
+  @keyframes fall {
+    to { top: 110vh; transform: rotate(720deg); }
+  }
+
+  /* Info boxes */
+  .rule-box {
+    background: rgba(255,255,200,0.12);
+    border: 1px solid rgba(255,255,0,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: #ffe082;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎲 السلم والأفعى 🐍</h1>
+<p class="subtitle">الجملة الاسمية والفعلية — للصف الرابع</p>
+
+<div class="game-wrapper">
+
+  <!-- Board -->
+  <div class="board-container">
+    <canvas id="board" width="520" height="520"></canvas>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="side-panel">
+
+    <!-- Players -->
+    <div class="card">
+      <h2>👧🏻 اللاعبون</h2>
+      <div class="players-grid" id="players-grid"></div>
+    </div>
+
+    <!-- Dice -->
+    <div class="card dice-area">
+      <h2>🎲 النرد</h2>
+      <div id="dice-display">⚀</div>
+      <button id="roll-btn">ارمِ النرد!</button>
+      <div style="margin-top:10px; font-size:0.9rem; color:#b3e5fc; text-align:center;" id="turn-label"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h2>📋 الأحداث</h2>
+      <div id="log"></div>
+    </div>
+
+    <!-- Legend -->
+    <div class="card">
+      <h2>🗺️ دليل الألوان</h2>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-color" style="background:#43a047;"></div><span>سلم ⬆️ صعود</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#e53935;"></div><span>أفعى ⬇️ نزول</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ffd600;"></div><span>مربع سؤال ❓</span></div>
+      </div>
+      <div class="rule-box">✅ إجابة صحيحة = تبقى في مكانك<br>❌ إجابة خاطئة = ترجع للخلف 3 مربعات</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Question Modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div class="modal-emoji" id="modal-emoji">❓</div>
+    <div class="modal-title" id="modal-title">سؤال!</div>
+    <div class="modal-question" id="modal-question"></div>
+    <div class="modal-options" id="modal-options"></div>
+    <div class="modal-feedback" id="modal-feedback" style="display:none;"></div>
+    <button id="modal-next-btn">التالي ▶</button>
+  </div>
+</div>
+
+<!-- Win Screen -->
+<div id="win-screen">
+  <div class="win-emoji">🏆</div>
+  <div class="win-title" id="win-title">مبروك!</div>
+  <div class="win-sub" id="win-sub"></div>
+  <button id="restart-btn">🔄 العب مرة أخرى</button>
+</div>
+
+<script>
+// ===================== DATA =====================
+const PLAYERS = [
+  { name: 'اللاعب 1', emoji: '🔴', color: '#e53935', pos: 0 },
+  { name: 'اللاعب 2', emoji: '🔵', color: '#1e88e5', pos: 0 },
+  { name: 'اللاعب 3', emoji: '🟢', color: '#43a047', pos: 0 },
+  { name: 'اللاعب 4', emoji: '🟡', color: '#f9a825', pos: 0 },
+];
+
+// Ladders: from -> to (go up)
+const LADDERS = { 4:14, 9:31, 20:38, 28:84, 40:59, 51:67, 63:81, 71:91 };
+// Snakes: from -> to (go down)
+const SNAKES  = { 17:7, 54:34, 62:19, 64:60, 87:24, 93:73, 95:75, 99:78 };
+// Question squares (land here → question appears)
+const QUESTION_SQUARES = new Set([3,6,10,13,18,23,27,33,37,42,46,50,55,58,65,68,72,76,80,85,89,94,97]);
+
+const QUESTIONS = [
+  {
+    q: 'أيٌّ من هذه الجمل جملةٌ اسمية؟',
+    options: ['ذَهَبَ التلميذُ إلى المدرسةِ','السماءُ صافيةٌ','يلعبُ الولدُ الكرةَ','كَتَبَ المعلمُ الدرسَ'],
+    answer: 1,
+    emoji: '🌤️',
+    hint: 'الجملة الاسمية تبدأ باسم'
+  },
+  {
+    q: 'أيٌّ من هذه الجمل جملةٌ فعلية؟',
+    options: ['البيتُ كبيرٌ','الطالبُ مجتهدٌ','نامَ الطفلُ','الوردةُ جميلةٌ'],
+    answer: 2,
+    emoji: '😴',
+    hint: 'الجملة الفعلية تبدأ بفعل'
+  },
+  {
+    q: 'ما اسم الجزء الأول من الجملة الاسمية؟',
+    options: ['الفاعل','المبتدأ','الفعل','الخبر'],
+    answer: 1,
+    emoji: '🏁',
+    hint: 'الجملة الاسمية = المبتدأ + الخبر'
+  },
+  {
+    q: 'في جملة "يلعبُ الطالبُ الكرةَ" — ما نوع الجملة؟',
+    options: ['جملة اسمية','جملة فعلية','جملة خبرية','لا شيء'],
+    answer: 1,
+    emoji: '⚽',
+    hint: 'الكلمة الأولى "يلعب" هي فعل'
+  },
+  {
+    q: 'ما الركنان الأساسيان للجملة الفعلية؟',
+    options: ['المبتدأ والخبر','الفاعل والمفعول','الفعل والفاعل','الاسم والفعل'],
+    answer: 2,
+    emoji: '🔑',
+    hint: 'الجملة الفعلية = الفعل + الفاعل'
+  },
+  {
+    q: '"الشَّمسُ سَاطعةٌ" — ما المبتدأ في هذه الجملة؟',
+    options: ['سَاطعةٌ','الشَّمسُ','الجملة كلها','لا يوجد مبتدأ'],
+    answer: 1,
+    emoji: '☀️',
+    hint: 'المبتدأ هو الاسم الذي في بداية الجملة'
+  },
+  {
+    q: '"الشَّمسُ سَاطعةٌ" — ما الخبر في هذه الجملة؟',
+    options: ['الشَّمسُ','سَاطعةٌ','لا يوجد خبر','كلتاهما خبر'],
+    answer: 1,
+    emoji: '🌟',
+    hint: 'الخبر يخبرنا عن المبتدأ'
+  },
+  {
+    q: 'في جملة "ذَهَبَ المعلمُ" — ما الفاعل؟',
+    options: ['ذَهَبَ','المعلمُ','المدرسة','الدرس'],
+    answer: 1,
+    emoji: '🧑‍🏫',
+    hint: 'الفاعل هو من قام بالفعل'
+  },
+  {
+    q: 'أيٌّ من هذه الكلمات يمكن أن يكون مبتدأ؟',
+    options: ['ذَهَبَ','يكتبُ','الكتابُ','يلعبُ'],
+    answer: 2,
+    emoji: '📚',
+    hint: 'المبتدأ لا بدّ أن يكون اسمًا'
+  },
+  {
+    q: 'الجملة الاسمية تبدأ بـ:',
+    options: ['فعل','حرف','اسم','أداة'],
+    answer: 2,
+    emoji: '🔤',
+    hint: 'اسم = الجملة اسمية ؛ فعل = الجملة فعلية'
+  },
+  {
+    q: '"أكَلَ الأسدُ اللحمَ" — هذه الجملة:',
+    options: ['اسمية','فعلية','لا نوع لها','خبرية'],
+    answer: 1,
+    emoji: '🦁',
+    hint: 'الكلمة الأولى "أكل" فعل'
+  },
+  {
+    q: '"البحرُ واسعٌ" — الخبر في هذه الجملة هو:',
+    options: ['البحرُ','واسعٌ','الجملة كلها','لا يوجد'],
+    answer: 1,
+    emoji: '🌊',
+    hint: 'الخبر يأتي بعد المبتدأ ويخبرنا عنه'
+  },
+  {
+    q: 'أيٌّ من هذه الجمل تبدأ بفعل؟',
+    options: ['القطةُ لطيفةٌ','شجرةٌ طويلةٌ','نَبَحَ الكلبُ','الطفلُ نائمٌ'],
+    answer: 2,
+    emoji: '🐕',
+    hint: 'ابحث عن الجملة التي أول كلمة فيها فعل'
+  },
+  {
+    q: 'المبتدأ والخبر ركنا الجملة:',
+    options: ['الفعلية','الاسمية','الخبرية','الظرفية'],
+    answer: 1,
+    emoji: '📖',
+    hint: 'هيا نتذكر القاعدة!'
+  },
+  {
+    q: '"طارَ العصفورُ" — الفاعل في هذه الجملة هو:',
+    options: ['طارَ','العصفورُ','البيتُ','لا فاعل'],
+    answer: 1,
+    emoji: '🐦',
+    hint: 'الفاعل هو من قام بالطيران'
+  },
+  {
+    q: 'ما نوع جملة "الوردةُ حمراءُ"؟',
+    options: ['جملة فعلية','جملة اسمية','ليست جملة','جملة شرطية'],
+    answer: 1,
+    emoji: '🌹',
+    hint: 'أول كلمة "الوردة" — هل هي اسم أم فعل؟'
+  },
+];
+
+// ===================== BOARD DRAWING =====================
+const COLS = 10, ROWS = 10, TOTAL = 100;
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const CELL = Math.floor(520 / 10); // 52
+
+function cellPos(n) { // returns {row, col} 0-indexed from bottom-left
+  if (n < 1) return { row: 9, col: 0 };
+  n = Math.min(n, 100);
+  const r = Math.floor((n - 1) / 10);      // 0=bottom row
+  let c = (n - 1) % 10;
+  if (r % 2 === 1) c = 9 - c;              // snake numbering
+  return { row: 9 - r, col: c };
+}
+
+function cellCenter(n) {
+  const { row, col } = cellPos(n);
+  return { x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 };
+}
+
+const COLORS_LIGHT = ['#e8f5e9','#e3f2fd','#fff9c4','#fce4ec','#e8eaf6','#e0f7fa','#fff3e0','#f3e5f5','#e8f5e9','#e3f2fd'];
+
+function drawBoard() {
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const n = cellNum(row, col);
+      const isQ = QUESTION_SQUARES.has(n);
+      const isLadderStart = LADDERS[n] !== undefined;
+      const isSnakeStart  = SNAKES[n]  !== undefined;
+
+      let bg = COLORS_LIGHT[(row + col) % COLORS_LIGHT.length];
+      if (isQ)           bg = '#fffde7';
+      if (isLadderStart) bg = '#c8e6c9';
+      if (isSnakeStart)  bg = '#ffcdd2';
+
+      ctx.fillStyle = bg;
+      ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(col * CELL, row * CELL, CELL, CELL);
+
+      // Number
+      ctx.fillStyle = '#555';
+      ctx.font = 'bold 11px Tajawal, Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(n, col * CELL + CELL / 2, row * CELL + 2);
+
+      // Icons
+      ctx.font = '16px serif';
+      ctx.textBaseline = 'middle';
+      if (isLadderStart) ctx.fillText('🪜', col * CELL + CELL / 2, row * CELL + CELL / 2 + 4);
+      else if (isSnakeStart) ctx.fillText('🐍', col * CELL + CELL / 2, row * CELL + CELL / 2 + 4);
+      else if (isQ) ctx.fillText('❓', col * CELL + CELL / 2, row * CELL + CELL / 2 + 4);
+    }
+  }
+  // Draw ladder lines
+  ctx.lineWidth = 4;
+  for (const [from, to] of Object.entries(LADDERS)) {
+    const a = cellCenter(+from), b = cellCenter(+to);
+    ctx.strokeStyle = '#2e7d32';
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  // Draw snake lines
+  for (const [from, to] of Object.entries(SNAKES)) {
+    const a = cellCenter(+from), b = cellCenter(+to);
+    ctx.strokeStyle = '#c62828';
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Star at 100
+  const star = cellCenter(100);
+  ctx.font = '22px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌟', star.x, star.y + 4);
+}
+
+function cellNum(row, col) {
+  const r = 9 - row; // 0=bottom
+  let c = (r % 2 === 0) ? col : (9 - col);
+  return r * 10 + c + 1;
+}
+
+function drawPlayers() {
+  drawBoard();
+  const offsets = [[-8,-8],[8,-8],[-8,8],[8,8]];
+  for (let i = 0; i < state.numPlayers; i++) {
+    const p = state.players[i];
+    if (p.pos < 1) continue;
+    const { x, y } = cellCenter(p.pos);
+    const [ox, oy] = offsets[i];
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.emoji, x + ox, y + oy);
+  }
+}
+
+// ===================== STATE =====================
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+let state = {};
+let questionCallback = null;
+
+function initGame(numPlayers) {
+  state = {
+    numPlayers,
+    players: PLAYERS.slice(0, numPlayers).map(p => ({ ...p, pos: 0 })),
+    current: 0,
+    rolling: false,
+    usedQuestions: new Set(),
+  };
+  renderPlayers();
+  updateTurnLabel();
+  drawBoard();
+  clearLog();
+  addLog('🎮 بدأت اللعبة! بالتوفيق للجميع 🎉');
+}
+
+// ===================== UI =====================
+function renderPlayers() {
+  const grid = document.getElementById('players-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < state.numPlayers; i++) {
+    const p = state.players[i];
+    const div = document.createElement('div');
+    div.className = 'player-row' + (i === state.current ? ' active' : '');
+    div.id = 'prow-' + i;
+    div.innerHTML = `
+      <div class="player-dot" style="background:${p.color};">${p.emoji}</div>
+      <div class="player-info">
+        <div>${p.name}</div>
+        <div class="player-pos">المربع: ${p.pos || 'البداية'}</div>
+      </div>`;
+    grid.appendChild(div);
+  }
+}
+
+function updateTurnLabel() {
+  const p = state.players[state.current];
+  document.getElementById('turn-label').textContent = `دور: ${p.emoji} ${p.name}`;
+}
+
+function addLog(msg) {
+  const log = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.textContent = msg;
+  log.prepend(div);
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '';
+}
+
+// ===================== ROLL =====================
+document.getElementById('roll-btn').addEventListener('click', rollDice);
+
+async function rollDice() {
+  if (state.rolling) return;
+  state.rolling = true;
+  document.getElementById('roll-btn').disabled = true;
+
+  // Animate dice
+  const diceEl = document.getElementById('dice-display');
+  diceEl.classList.add('rolling');
+  let count = 0;
+  await new Promise(r => {
+    const iv = setInterval(() => {
+      diceEl.textContent = DICE_FACES[Math.floor(Math.random() * 6)];
+      if (++count >= 8) { clearInterval(iv); r(); }
+    }, 80);
+  });
+  diceEl.classList.remove('rolling');
+
+  const roll = Math.floor(Math.random() * 6) + 1;
+  diceEl.textContent = DICE_FACES[roll - 1];
+
+  const p = state.players[state.current];
+  addLog(`${p.emoji} ${p.name} رمى ${roll}`);
+
+  let newPos = p.pos + roll;
+  if (newPos > 100) newPos = p.pos; // bounce back
+
+  await movePlayer(state.current, newPos);
+}
+
+async function movePlayer(idx, target) {
+  const p = state.players[idx];
+  // Animate step by step
+  for (let pos = p.pos + 1; pos <= target; pos++) {
+    p.pos = pos;
+    drawPlayers();
+    await sleep(120);
+  }
+
+  // Check question square
+  if (QUESTION_SQUARES.has(p.pos)) {
+    addLog(`${p.emoji} وقف على مربع سؤال ❓`);
+    const answered = await askQuestion(idx);
+    if (!answered) {
+      // Wrong: go back 3
+      const back = Math.max(1, p.pos - 3);
+      addLog(`${p.emoji} إجابة خاطئة! يرجع للمربع ${back}`);
+      for (let pos = p.pos - 1; pos >= back; pos--) {
+        p.pos = pos;
+        drawPlayers();
+        await sleep(120);
+      }
+    }
+  }
+
+  // Check ladder
+  if (LADDERS[p.pos]) {
+    const dest = LADDERS[p.pos];
+    addLog(`${p.emoji} 🪜 يصعد السلم من ${p.pos} إلى ${dest}!`);
+    p.pos = dest;
+    drawPlayers();
+    await sleep(300);
+  }
+  // Check snake
+  else if (SNAKES[p.pos]) {
+    const dest = SNAKES[p.pos];
+    addLog(`${p.emoji} 🐍 الأفعى تأكله! من ${p.pos} إلى ${dest}!`);
+    p.pos = dest;
+    drawPlayers();
+    await sleep(300);
+  }
+
+  renderPlayers();
+
+  // Win?
+  if (p.pos >= 100) {
+    showWin(idx);
+    return;
+  }
+
+  // Next player
+  state.current = (state.current + 1) % state.numPlayers;
+  updateTurnLabel();
+  renderPlayers();
+  state.rolling = false;
+  document.getElementById('roll-btn').disabled = false;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ===================== QUESTIONS =====================
+function getRandomQuestion() {
+  const available = QUESTIONS.filter((_, i) => !state.usedQuestions.has(i));
+  if (available.length === 0) { state.usedQuestions.clear(); }
+  const pool = QUESTIONS.filter((_, i) => !state.usedQuestions.has(i));
+  const idx = Math.floor(Math.random() * pool.length);
+  const qIdx = QUESTIONS.indexOf(pool[idx]);
+  state.usedQuestions.add(qIdx);
+  return pool[idx];
+}
+
+function askQuestion(playerIdx) {
+  return new Promise(resolve => {
+    const q = getRandomQuestion();
+    const overlay = document.getElementById('modal-overlay');
+    const p = state.players[playerIdx];
+
+    document.getElementById('modal-emoji').textContent = q.emoji;
+    document.getElementById('modal-title').textContent = `سؤال لـ ${p.emoji} ${p.name}`;
+    document.getElementById('modal-question').textContent = q.q;
+
+    const optsEl = document.getElementById('modal-options');
+    optsEl.innerHTML = '';
+    const feedback = document.getElementById('modal-feedback');
+    feedback.style.display = 'none';
+    feedback.className = 'modal-feedback';
+    const nextBtn = document.getElementById('modal-next-btn');
+    nextBtn.style.display = 'none';
+
+    let answered = false;
+
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'modal-opt';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        if (answered) return;
+        answered = true;
+        const correct = i === q.answer;
+        btn.classList.add(correct ? 'correct' : 'wrong');
+        if (!correct) {
+          optsEl.children[q.answer].classList.add('correct');
+        }
+        feedback.style.display = 'block';
+        feedback.className = 'modal-feedback ' + (correct ? 'correct' : 'wrong');
+        feedback.textContent = correct
+          ? '✅ إجابة صحيحة! أحسنت!'
+          : `❌ الإجابة الصحيحة: ${q.options[q.answer]}. تذكر: ${q.hint}`;
+        nextBtn.style.display = 'block';
+        nextBtn.onclick = () => {
+          overlay.classList.remove('show');
+          resolve(correct);
+        };
+      };
+      optsEl.appendChild(btn);
+    });
+
+    overlay.classList.add('show');
+  });
+}
+
+// ===================== WIN =====================
+function showWin(idx) {
+  const p = state.players[idx];
+  document.getElementById('win-title').textContent = `مبروك ${p.emoji} ${p.name}!`;
+  document.getElementById('win-sub').textContent = 'لقد وصلت إلى المربع 100 وفزت باللعبة! 🎉';
+  document.getElementById('win-screen').classList.add('show');
+  spawnConfetti();
+}
+
+function spawnConfetti() {
+  const colors = ['#f44336','#2196F3','#4CAF50','#FFEB3B','#9C27B0','#FF9800'];
+  for (let i = 0; i < 80; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDuration = (2 + Math.random() * 2) + 's';
+      el.style.animationDelay = Math.random() * 1.5 + 's';
+      el.style.transform = `rotate(${Math.random()*360}deg)`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }, i * 30);
+  }
+}
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  document.getElementById('win-screen').classList.remove('show');
+  showPlayerSelect();
+});
+
+// ===================== PLAYER SELECT =====================
+function showPlayerSelect() {
+  const overlay = document.createElement('div');
+  overlay.id = 'player-select-overlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;display:flex;align-items:center;justify-content:center;`;
+  const box = document.createElement('div');
+  box.style.cssText = `background:linear-gradient(135deg,#0d47a1,#1565c0);border-radius:20px;padding:32px;text-align:center;color:#fff;width:320px;`;
+  box.innerHTML = `
+    <div style="font-size:3rem;">🎲</div>
+    <h2 style="margin:10px 0 6px;font-size:1.5rem;">السلم والأفعى</h2>
+    <p style="color:#b3e5fc;margin-bottom:20px;">الجملة الاسمية والفعلية</p>
+    <p style="margin-bottom:14px;font-size:1.05rem;">كم عدد اللاعبين؟</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      ${[1,2,3,4].map(n=>`<button onclick="startGame(${n})" style="background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);border-radius:12px;padding:12px 22px;font-size:1.2rem;font-family:Tajawal,Arial,sans-serif;cursor:pointer;">${n} ${n===1?'لاعب':'لاعبين'}</button>`).join('')}
+    </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function startGame(n) {
+  const overlay = document.getElementById('player-select-overlay');
+  if (overlay) overlay.remove();
+  initGame(n);
+}
+
+// ===================== START =====================
+drawBoard();
+showPlayerSelect();
+</script>
+</body>
+</html>
